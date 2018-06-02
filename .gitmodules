@@ -1,0 +1,12 @@
+[submodule "go/src/github.com/dombenson/go-ini"]
+	path = go/src/github.com/dombenson/go-ini
+	url = https://github.com/dombenson/go-ini.git
+[submodule "go/src/github.com/fsnotify/fsnotify"]
+	path = go/src/github.com/fsnotify/fsnotify
+	url = https://github.com/fsnotify/fsnotify.git
+[submodule "go/src/golang.org/x/sys"]
+	path = go/src/golang.org/x/sys
+	url = https://go.googlesource.com/sys
+[submodule "go/src/github.com/google/uuid"]
+	path = go/src/github.com/google/uuid
+	url = http://github.com/google/uuid.git
