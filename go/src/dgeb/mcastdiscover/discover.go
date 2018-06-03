@@ -17,16 +17,18 @@ type mcastDiscoverer struct {
 	listener     *net.UDPConn
 	peers        *map[string]interfaces.Peer
 	removeCbs    []func(interfaces.Peer)
+	discoverAddr string
 }
 
 // NewDiscoverer makes a new multicast discoverer
-func NewDiscoverer(conf interfaces.Config) interfaces.Discoverer {
+func NewDiscoverer(conf interfaces.Config, discoverAddr string) interfaces.Discoverer {
 	peerList := make(map[string]interfaces.Peer)
 	d := &mcastDiscoverer{
 		conf:         conf,
 		stopPollChan: make(chan (chan (struct{})), 1),
 		peers:        &peerList,
 		removeCbs:    make([]func(interfaces.Peer), 0),
+		discoverAddr: discoverAddr,
 	}
 
 	return d
@@ -47,32 +49,16 @@ func (d *mcastDiscoverer) GetPeers() []interfaces.Peer {
 	return peerList
 }
 
-func (d *mcastDiscoverer) Discover(discoverAddr, advertiseAddr string) error {
+func (d *mcastDiscoverer) Discover() error {
 	if d.running {
 		return errors.New("Already running")
 	}
 	log.Println("Starting discoverer")
-	listenAddr, err := net.ResolveUDPAddr("udp", advertiseAddr)
-	if err != nil {
-		return err
-	}
-	pollAddr, err := net.ResolveUDPAddr("udp", discoverAddr)
+	listenAddr, err := net.ResolveUDPAddr("udp", d.discoverAddr)
 	if err != nil {
 		return err
 	}
 	listener, err := net.ListenMulticastUDP("udp", nil, listenAddr)
-	if err != nil {
-		return err
-	}
-	poller, err := net.DialUDP("udp", nil, pollAddr)
-	if err != nil {
-		return err
-	}
-
-	myInfo := pingMsg{}
-	myInfo.InstanceID = d.conf.GetInstanceID()
-	myInfo.Port = d.conf.GetHTTPPort()
-	myInfoJSON, err := json.Marshal(myInfo)
 	if err != nil {
 		return err
 	}
@@ -82,7 +68,6 @@ func (d *mcastDiscoverer) Discover(discoverAddr, advertiseAddr string) error {
 	d.running = true
 	go d.listen()
 	go d.maintain()
-	go d.poll(poller, myInfoJSON)
 	return nil
 }
 
@@ -129,31 +114,7 @@ func (d *mcastDiscoverer) Stop() {
 	resChan := make(chan (struct{}))
 	d.stopPollChan <- resChan
 	<-resChan
-	<-resChan
 	log.Println("Stopped discoverer")
-}
-
-func (d *mcastDiscoverer) poll(conn *net.UDPConn, msg []byte) {
-	var rChan chan (struct{})
-	stopLoop := false
-	pollTicker := time.NewTicker(d.conf.GetDiscoverInterval())
-	for {
-		conn.Write(msg)
-		select {
-		case rChan = <-d.stopPollChan:
-			stopLoop = true
-			break
-		case <-pollTicker.C:
-		}
-		if stopLoop {
-			break
-		}
-	}
-	pollTicker.Stop()
-	d.listener.Close()
-	if rChan != nil {
-		rChan <- struct{}{}
-	}
 }
 
 func (d *mcastDiscoverer) listen() {
@@ -181,13 +142,13 @@ func (d *mcastDiscoverer) listen() {
 			newPeers := make(map[string]interfaces.Peer, len(curPeers)+1)
 			for k, v := range curPeers {
 				if v.IsStale() {
+					log.Println("Removing stale peer with id: ", v.GetID())
 					continue
 				}
 				newPeers[k] = v
-				log.Println(v)
 			}
 			newPeers[peerInfo.InstanceID] = thisPeer
-			log.Println(thisPeer)
+			log.Println("Adding peer with id: ", thisPeer.GetID())
 			d.peers = &newPeers
 		} else {
 			curInfo.(*peer).lastSeen = time.Now()

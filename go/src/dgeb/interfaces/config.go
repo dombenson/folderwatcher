@@ -1,7 +1,6 @@
 package interfaces
 
 import (
-	"dgeb/fsevt"
 	"time"
 )
 
@@ -26,58 +25,4 @@ type Config interface {
 	GetDiscoverInterval() time.Duration
 	// Time after which to consider peer dead
 	GetDiscoverHeartbeat() time.Duration
-}
-
-// Discoverer is used to locate watchers/masters
-// Initial implementation is multicast-based
-type Discoverer interface {
-	// Get the current list of peers
-	GetPeers() []Peer
-	// Launches a goroutine to runs the discovery process on an ongoing basis, or returns an error
-	Discover(discoverAddr, advertiseAddr string) error
-	// Stop a running discover process
-	Stop()
-	// Add a callback function to run when a peer is removed
-	AddRemoveCb(func(Peer))
-}
-
-// Peer represents a watcher/master, and how to communicate with it
-type Peer interface {
-	// The address to contact this peer
-	GetAddr() string
-	// How long since the peer has reported in
-	StaleTime() time.Duration
-	// The ID of this peer
-	GetID() string
-	// Is currently marked as stale?
-	IsStale() bool
-}
-
-// Watcher monitors a directory and sends listings to the peers
-// identified by a discoverer
-type Watcher interface {
-	// The current files
-	Files() []string
-	// Launch a watcher, uses a Messenger to send events to peers identified by a Discoverer
-	Watch(directory string) error
-	// Stop a running watcher
-	Stop()
-}
-
-// Messenger can send info to a Peer
-type Messenger interface {
-	SendFull(Peer, []string) error
-	SendPartial(Peer, []fsevt.FsEvt) error
-}
-
-// Receiver is a peer to Messenger and accepts messages, passing them off to a Storer
-type Receiver interface {
-}
-
-// Storer receives and stores lists from Receivers
-type Storer interface {
-	SetFull(peerID string, fileList []string) error
-	AddEvents(peerID string, eventList []fsevt.FsEvt) error
-	GetList() []string
-	RemovePeer(peer Peer)
 }

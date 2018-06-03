@@ -4,6 +4,7 @@ import (
 	"context"
 	"dgeb/config/iniconfig"
 	"dgeb/httpmessenger"
+	"dgeb/httpreporter"
 	"dgeb/mcastdiscover"
 	"dgeb/memorystorer"
 	"flag"
@@ -13,6 +14,8 @@ import (
 	"os"
 	"os/signal"
 	"time"
+
+	"goji.io/pat"
 
 	"goji.io"
 )
@@ -24,41 +27,47 @@ func main() {
 	conf := iniconfig.Get(confPath)
 
 	log.Println("Starting master with ID: ", conf.GetInstanceID())
+	defer log.Println("Shutdown complete")
 
-	discoverer := mcastdiscover.NewDiscoverer(conf)
+	discoverer := mcastdiscover.NewDiscoverer(conf, conf.GetServerAddr())
+	advertiser := mcastdiscover.NewAdvertiser(conf, conf.GetClientAddr())
 	storer := memorystorer.NewStorer()
 	receiver := httpmessenger.NewReceiver(conf, storer)
 
 	discoverer.AddRemoveCb(storer.RemovePeer)
 
-	err := discoverer.Discover(conf.GetClientAddr(), conf.GetServerAddr())
+	err := discoverer.Discover()
 	if err != nil {
 		panic(err)
 	}
+	defer discoverer.Stop()
+	err = advertiser.Advertise()
+	if err != nil {
+		panic(err)
+	}
+	defer advertiser.Stop()
+
+	reporter := httpreporter.NewReporter(storer)
 
 	httpMux := goji.NewMux()
 	receiver.AddMux(httpMux)
+	httpMux.Handle(pat.Get("/"), reporter)
 
 	listenAddr := fmt.Sprintf(":%d", conf.GetHTTPPort())
 	httpServer := &http.Server{Addr: listenAddr, Handler: httpMux}
+	log.Println("Starting webserver on " + listenAddr)
 	go httpServer.ListenAndServe()
+
+	defer func() {
+		log.Println("Stopping webserver")
+		ctx, ctxCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		httpServer.Shutdown(ctx)
+		ctxCancel()
+	}()
 
 	stopChan := make(chan (os.Signal))
 	signal.Notify(stopChan, os.Interrupt)
 	<-stopChan
 
-	ctx, ctxCancel := context.WithTimeout(context.Background(), 5*time.Second)
-	httpServer.Shutdown(ctx)
-	ctxCancel()
-
-	peers := discoverer.GetPeers()
-
-	discoverer.Stop()
-
-	for _, v := range peers {
-		log.Println(v.GetAddr())
-	}
-
-	log.Println(storer.GetList())
-	log.Println("Shutdown")
+	log.Println("Shutting down")
 }
