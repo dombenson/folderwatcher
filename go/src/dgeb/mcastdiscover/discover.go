@@ -63,7 +63,7 @@ func (d *mcastDiscoverer) Discover(discoverAddr, advertiseAddr string) error {
 
 	myInfo := pingMsg{}
 	myInfo.InstanceID = d.conf.GetInstanceID()
-	myInfo.Port = d.conf.GetHttpPort()
+	myInfo.Port = d.conf.GetHTTPPort()
 	myInfoJSON, err := json.Marshal(myInfo)
 	if err != nil {
 		return err

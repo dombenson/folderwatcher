@@ -1,7 +1,7 @@
 package main
 
 import (
-	"dgeb/iniconfig"
+	"dgeb/config/iniconfig"
 	"dgeb/mcastdiscover"
 	"flag"
 	"log"
@@ -30,4 +30,5 @@ func main() {
 	for _, v := range peers {
 		log.Println(v.GetAddr())
 	}
+	log.Println("Shutdown")
 }

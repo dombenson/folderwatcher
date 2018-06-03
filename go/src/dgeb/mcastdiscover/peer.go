@@ -19,3 +19,7 @@ func (p *peer) GetAddr() string {
 func (p *peer) StaleTime() time.Duration {
 	return time.Since(p.lastSeen)
 }
+
+func (p *peer) GetID() string {
+	return p.instanceID
+}
