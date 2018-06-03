@@ -139,6 +139,7 @@ func (w *watcher) processEvents(filteredEvtChan chan (fsevt.FsEvt)) {
 			break
 		}
 	}
+	sendTimer.Stop()
 }
 
 func (w *watcher) doWatch(fsn *fsnotify.Watcher, filteredEvtChan chan (fsevt.FsEvt)) {

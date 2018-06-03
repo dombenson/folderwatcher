@@ -10,6 +10,7 @@ type peer struct {
 	port       int
 	instanceID string
 	lastSeen   time.Time
+	stale      bool
 }
 
 func (p *peer) GetAddr() string {
@@ -22,4 +23,12 @@ func (p *peer) StaleTime() time.Duration {
 
 func (p *peer) GetID() string {
 	return p.instanceID
+}
+func (p *peer) setStale(stale bool) bool {
+	ret := stale && !p.stale
+	p.stale = stale
+	return ret
+}
+func (p *peer) IsStale() bool {
+	return p.stale
 }

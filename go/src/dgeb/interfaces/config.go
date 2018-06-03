@@ -37,6 +37,8 @@ type Discoverer interface {
 	Discover(discoverAddr, advertiseAddr string) error
 	// Stop a running discover process
 	Stop()
+	// Add a callback function to run when a peer is removed
+	AddRemoveCb(func(Peer))
 }
 
 // Peer represents a watcher/master, and how to communicate with it
@@ -47,6 +49,8 @@ type Peer interface {
 	StaleTime() time.Duration
 	// The ID of this peer
 	GetID() string
+	// Is currently marked as stale?
+	IsStale() bool
 }
 
 // Watcher monitors a directory and sends listings to the peers
@@ -64,4 +68,16 @@ type Watcher interface {
 type Messenger interface {
 	SendFull(Peer, []string) error
 	SendPartial(Peer, []fsevt.FsEvt) error
+}
+
+// Receiver is a peer to Messenger and accepts messages, passing them off to a Storer
+type Receiver interface {
+}
+
+// Storer receives and stores lists from Receivers
+type Storer interface {
+	SetFull(peerID string, fileList []string) error
+	AddEvents(peerID string, eventList []fsevt.FsEvt) error
+	GetList() []string
+	RemovePeer(peer Peer)
 }

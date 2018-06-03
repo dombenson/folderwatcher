@@ -10,3 +10,6 @@
 [submodule "go/src/github.com/google/uuid"]
 	path = go/src/github.com/google/uuid
 	url = http://github.com/google/uuid.git
+[submodule "go/src/goji.io"]
+	path = go/src/goji.io
+	url = https://github.com/goji/goji
