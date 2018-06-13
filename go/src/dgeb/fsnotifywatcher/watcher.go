@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path"
 	"sort"
 	"time"
 
@@ -97,10 +98,12 @@ func (w *watcher) sendEvents(evts []fsevt.FsEvt, d interfaces.Discoverer) {
 	for _, peer := range peers {
 		lastOk, found := w.peerStates[peer.GetID()]
 		if found && lastOk {
-			err := w.m.SendPartial(peer, evts)
-			if err != nil {
-				w.peerStates[peer.GetID()] = false
-				log.Println("Partial update error: ", err)
+			if len(evts) > 0 {
+				err := w.m.SendPartial(peer, evts)
+				if err != nil {
+					w.peerStates[peer.GetID()] = false
+					log.Println("Partial update error: ", err)
+				}
 			}
 		} else {
 			err := w.m.SendFull(peer, w.Files())
@@ -150,9 +153,9 @@ func (w *watcher) doWatch(fsn *fsnotify.Watcher, filteredEvtChan chan (fsevt.FsE
 		case fsEvt := <-fsn.Events:
 			switch fsEvt.Op {
 			case fsnotify.Create:
-				filteredEvtChan <- fsevt.FsEvt{Type: fsevt.FsEvtAdd, Name: fsEvt.Name}
+				filteredEvtChan <- fsevt.FsEvt{Type: fsevt.FsEvtAdd, Name: path.Base(fsEvt.Name)}
 			case fsnotify.Remove, fsnotify.Rename:
-				filteredEvtChan <- fsevt.FsEvt{Type: fsevt.FsEvtDel, Name: fsEvt.Name}
+				filteredEvtChan <- fsevt.FsEvt{Type: fsevt.FsEvtDel, Name: path.Base(fsEvt.Name)}
 			}
 		case fsErr := <-fsn.Errors:
 			log.Println("Nofify error:", fsErr)
